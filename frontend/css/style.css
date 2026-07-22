@@ -1,0 +1,37 @@
+body {
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  background: #F5EEFB;
+  color: #2E1A47;
+}
+
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: linear-gradient(135deg, #5B3A8C, #8B5CB4);
+  color: white;
+  padding: 20px;
+}
+
+.hero h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.hero p {
+  font-size: 1.2rem;
+  max-width: 500px;
+}
+
+.status {
+  margin-top: 30px;
+  padding: 10px 20px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  font-weight: 600;
+}
