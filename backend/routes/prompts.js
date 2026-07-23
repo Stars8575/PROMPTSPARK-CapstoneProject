@@ -1,46 +1,52 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
 const Prompt = require('../models/Prompt');
 const PromptVersion = require('../models/PromptVersion');
 const protect = require('../middleware/authMiddleware');
 
 const router = express.Router();
-
 router.use(protect);
 
-// GET all prompts for this user (supports ?search= and ?category=)
-router.get('/', async (req, res) => {
+function handleValidation(req, res, next) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: errors.array()[0].msg });
+  }
+  next();
+}
+
+const promptRules = [
+  body('title').trim().notEmpty().withMessage('Title is required'),
+  body('content').trim().notEmpty().withMessage('Prompt content is required'),
+  body('category').optional().trim()
+];
+
+router.get('/', async (req, res, next) => {
   try {
     const { search, category } = req.query;
     const query = { user: req.userId };
 
-    if (category && category !== 'All') {
-      query.category = category;
-    }
-
-    if (search) {
-      query.title = { $regex: search, $options: 'i' };
-    }
+    if (category && category !== 'All') query.category = category;
+    if (search) query.title = { $regex: search, $options: 'i' };
 
     const prompts = await Prompt.find(query).sort({ createdAt: -1 });
     res.json(prompts);
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    next(err);
   }
 });
 
-// GET a single prompt
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const prompt = await Prompt.findOne({ _id: req.params.id, user: req.userId });
     if (!prompt) return res.status(404).json({ message: 'Prompt not found' });
     res.json(prompt);
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    next(err);
   }
 });
 
-// GET version history for a prompt
-router.get('/:id/versions', async (req, res) => {
+router.get('/:id/versions', async (req, res, next) => {
   try {
     const prompt = await Prompt.findOne({ _id: req.params.id, user: req.userId });
     if (!prompt) return res.status(404).json({ message: 'Prompt not found' });
@@ -48,34 +54,26 @@ router.get('/:id/versions', async (req, res) => {
     const versions = await PromptVersion.find({ prompt: req.params.id }).sort({ versionNumber: -1 });
     res.json(versions);
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    next(err);
   }
 });
 
-// CREATE a prompt
-router.post('/', async (req, res) => {
+router.post('/', promptRules, handleValidation, async (req, res, next) => {
   try {
     const { title, content, category } = req.body;
-    const prompt = await Prompt.create({
-      user: req.userId,
-      title,
-      content,
-      category
-    });
+    const prompt = await Prompt.create({ user: req.userId, title, content, category });
     res.status(201).json(prompt);
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    next(err);
   }
 });
 
-// UPDATE a prompt (saves the previous state as a version first)
-router.put('/:id', async (req, res) => {
+router.put('/:id', promptRules, handleValidation, async (req, res, next) => {
   try {
     const existing = await Prompt.findOne({ _id: req.params.id, user: req.userId });
     if (!existing) return res.status(404).json({ message: 'Prompt not found' });
 
     const versionCount = await PromptVersion.countDocuments({ prompt: existing._id });
-
     await PromptVersion.create({
       prompt: existing._id,
       title: existing.title,
@@ -92,12 +90,11 @@ router.put('/:id', async (req, res) => {
 
     res.json(existing);
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    next(err);
   }
 });
 
-// RESTORE a previous version
-router.post('/:id/restore/:versionId', async (req, res) => {
+router.post('/:id/restore/:versionId', async (req, res, next) => {
   try {
     const prompt = await Prompt.findOne({ _id: req.params.id, user: req.userId });
     if (!prompt) return res.status(404).json({ message: 'Prompt not found' });
@@ -105,7 +102,6 @@ router.post('/:id/restore/:versionId', async (req, res) => {
     const version = await PromptVersion.findOne({ _id: req.params.versionId, prompt: prompt._id });
     if (!version) return res.status(404).json({ message: 'Version not found' });
 
-    // Save current state as a new version before restoring, so nothing is lost
     const versionCount = await PromptVersion.countDocuments({ prompt: prompt._id });
     await PromptVersion.create({
       prompt: prompt._id,
@@ -122,21 +118,19 @@ router.post('/:id/restore/:versionId', async (req, res) => {
 
     res.json(prompt);
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    next(err);
   }
 });
 
-// DELETE a prompt
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req, res, next) => {
   try {
     const prompt = await Prompt.findOneAndDelete({ _id: req.params.id, user: req.userId });
     if (!prompt) return res.status(404).json({ message: 'Prompt not found' });
 
     await PromptVersion.deleteMany({ prompt: prompt._id });
-
     res.json({ message: 'Prompt deleted' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    next(err);
   }
 });
 
