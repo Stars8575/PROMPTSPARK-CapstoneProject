@@ -157,7 +157,7 @@ flowchart TD
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/promptspark.git
+git clone https://github.com/Stars8575/PROMPTSPARK-CapstoneProject
 cd promptspark
 
 # Install backend dependencies
