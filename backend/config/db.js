@@ -1,13 +1,12 @@
 const mongoose = require('mongoose');
-const atlas_URL = "mongodb+srv://anus22hka_db_user:BvYeH6w6PgpH3sbr@cluster0.desil7g.mongodb.net/?appName=Cluster0";
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(atlas_URL);
+    await mongoose.connect(process.env.MONGO_URI);
     console.log('✅ MongoDB connected');
   } catch (err) {
-    console.error('❌ MongoDB connection failed:', err.message);
-    process.exit(1);
+    console.error('⚠️ MongoDB connection failed — server running WITHOUT a database:', err.message);
+    // Not calling process.exit(1) here so the server stays up for non-DB testing
   }
 };
 
